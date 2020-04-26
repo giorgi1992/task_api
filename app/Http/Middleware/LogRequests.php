@@ -29,18 +29,19 @@ class LogRequests
 
     protected function log($request, $response)
     {
-        $tokenHeader = $request->header('Auth');
+        $tokenHeader = ($request->header('Auth'))? $request->header('Auth'): $request->access_token;
+        if($tokenHeader) {
+            $userToken = User_tokens::where('access_token', $tokenHeader)->first();
+            if($userToken) {
+                $user = User::where('id', $userToken->user_id)->first();
+                if($user) {
+                    $request_params = json_encode($request->all());
+                    $data = ['user_id' => $user->id, 'token_id' => $tokenHeader, 'request_method' => $request->getMethod(), 'request_params' => $request_params];
 
-        $userToken = User_tokens::where('access_token', $tokenHeader)->first();
-        if($userToken) {
-            $user = User::where('id', $userToken->user_id)->first();
-            if($user) {
-                $request_params = json_encode($request->all());
-                $data = ['user_id' => $user->id, 'token_id' => $tokenHeader, 'request_method' => $request->getMethod(), 'request_params' => $request_params];
+                    $user->increment('requests_count');
+                    $requestLogs = User_request_logs::insert($data);
 
-                $user->increment('requests_count');
-                $requestLogs = User_request_logs::insert($data);
-
+                }
             }
         }
     }
